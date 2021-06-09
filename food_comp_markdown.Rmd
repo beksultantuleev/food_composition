@@ -1,0 +1,322 @@
+---
+title: "Food Composition Data, Clustering, and Classification"
+author: "Beksultan Tuleev"
+date: "5/4/2020"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Human nutrition always has been considered one of the pivotal issues because essential nutrients in food provide the necessary support for a healthy life. Poor nutrition often leads to numerous health diseases; therefore, a better understanding of nutrition science gives a better relation to maintenance, reproduction, and growth in general. To understand food nutrients, science digs in food composition data that gives information about values for each component in food, such as protein, fat, carbohydrates, minerals, vitamins, etc. Knowledge about the chemical composition of foods is crucial. For instance, it is pivotal in the dietary treatment of disease, in the treatment of allergies. The United States Department of Agriculture (USDA) National Nutrient Database (NND) for Standard Reference (SR) is the biggest source of data in food composition in the United States (US) that provides its databases for the public and private sectors. Food composition data has been published in an electronic copy on the Nutrient Data Laboratory (NDL) web page since 1992. The latest release has a number 28 (SR28) that contains a composition data for food groups and nutrients ever published before and completely replaces previous SR versions. SR28 contains 8790 units that have value for specific nutrients, such as protein, sugar, zinc, selenium, etc.  Additionally, the database was divided into 25 groups. The main goal of this paper is to make a classification and clustering of each nutrition component using different methods and compare their performance.
+
+## Literature Review
+
+Research study made by Daniel Granato, Janio S. Santos, Graziela B. Escher, Bruno L. Ferreira, and Rubén M. Maggio “Use of principal component analysis (PCA) and hierarchical cluster analysis(HCA) for a multivariate association between bioactive compounds and functional properties in foods: A critical perspective”[1] is a reference article for this research. PCA and HCA are mostly used in the analysis to determine similarities and unclear patterns in samples, especially in food chemistry analysis, because final results are easy to interpret. Additionally, variables in food chemistry tend to correlate with each other, and the PCA method does a great job even with this kind of datasets. As a result, authors get a decent classification. 
+
+
+Another fascinating research study was done by Lucia Giansante, Daria Di Vincenzo, and Giorgio Bianchi, 'Classification of monovarietal Italian olive oils by unsupervised (PCA) and supervised (LDA) chemometrics'[2]. By the title of the research it is clear that in addition to PCA, Linear Discriminant Analysis (LDA) was done to perform clustering on different compounds of oils, such as hexacosanol, cycloartenol, methylencycloartenol, oleic, linoleic. and etc. Since LDA is a supervised technique, the date was divided on training and testing set, where it has 57 and 19 oil samples respectively. This approach would be followed in this paper as well. 
+
+Next research that was done by Steffen Oppel and Falk Huettmann 'Using a Random Forest Model and Public Data to Predict the Distribution of Prey for Marine Wildlife Management'[3] introduces another classification method for this paper - Random Forest. The study field in that research is different from the previous ones and covers the food chain for marine wildlife and the prediction of the distribution of benthic biomass across the entire Bering Sea. There was used environmental variables, like chlorophyll a content, hydrography, water temperature, sea ice scouring, and sediment grain size. Random Forest was used to classifying and determining the most important places for marine wildlife to have a sustainable food supply. The same method would be used in this research paper. 
+
+    
+Research by Seunghee WIe, Carow W. Shankin, Kyung-Eun Lee, 'A decision tree for selecting the most cost-effective waste disposal strategy in foodservice operations'[4] is introducing another classification method that used in current paper - Decision tree. The purpose of that paper was in determining the costs of disposal strategies for wastes in foodservice operations and to defining the most cost-effective disposal strategy for food services.
+
+
+The last referred paper is written by T. Shanthanam and Padmavathi M.S, 'Application of K-Means and Genetic Algorithms for Dimension Reduction by Integrating SVM for Diabetes Diagnosis' [5] that introduces two methods for clustering and classification: Support Vector Machine and K-Means. Although authors use both methods cooperatively to reduce nosiness in data with k-means and classify diabetes cases with Support Vector Machine (SVM), in the current paper two methods would be used separately to see the performance of each of them.
+
+
+## Data Description and Data Cleaning
+
+Data was taken from Standard Reference (SR28) file that contains 8790 observations. Data file offers for each observation the information of composition. 
+
+```{r}
+library(caret)
+data <- read.csv('https://drive.google.com/u/1/uc?id=15x9KDfU2x8lkiBzh2XWNVccLArS-MIFr&export=download')
+row.names(data) <- data$NDB_No
+data$NDB_No <- NULL
+data$X <- NULL
+correlation_dataframe = cor(data[-length(data)])
+hc = sort(findCorrelation(correlation_dataframe, cutoff=0.75)) 
+data = data[,-c(hc)]
+```
+
+The table below shows all columns in the SR28 file that been used in analysis.
+```{r}
+print(names(data))
+```
+For the supervised learning methods, the dataset was divided into training and testing sets with a ratio of 75/25.
+```{r}
+library(caTools)
+set.seed(123)
+split = sample.split(data$FoodGroup, SplitRatio = 0.75)
+training_data = subset(data, split == T)
+testing_data = subset(data, split == F)
+```
+
+## Methodology description
+The main strategy applied to the current dataset is classification and clustering, therefore few methods were applied to satisfy the targeted goal. Since the shape of the dataset is big enough, dimension reduction methods such as Linear Discriminant Analysis (LDA) and Principal Component Analysis(PCA) were applied to be able to project and classify and cluster components on the lower, 2-d plots. To find which components have a bigger influence on diversification, loading scores in PCA were used. Another fascinating method to find the most important components is a Random forest, and that is the next method used in the analysis. Random forest is an improved version of the Decision tree. But how Decision tree stands out in comparison with Random forest? To find an answer, a Decision tree was also added to the methodology. PCA is an unsupervised clustering method, but to test its accuracy Multinomial Logistic Regression (MLR) was used, and dependent variables for MLR are first Principal Components (PCs) with the highest variations obtained earlier in PCA. To compare PCA with another unsupervised clustering method, k-means clustering was used in the analysis. Since we have included LDA and MLR methods, which assume that categorical variables, in our case it is a Food Group, is normally distributed, it would be relevant to compare results with a method that does not do any assumptions on food group distribution. This method is the Support Vector Machine (SVM). 
+
+The final list of applied methods: LDA, PCA, Random Forest, Decision Tree, MLR, k-means, and SVM. In addition, all accuracy rates will be calculated and compared in one table. 
+
+**Which method in dimensionality reduction will provide better classification/clustering and project on the two-dimensional graph?**
+
+We are going to compare supervised LDA and unsupervised PCA methods.
+
+### LDA
+Linear Discriminant Analysis (LDA) is a statistical method similar to PCA in terms of dimensionality reduction, but very different in terms of calculation approach. First of all, it is a supervised learning method unlike PCA, LDA seeks features, which separate classes. LDA is widely used in the Machine Learning field since it is a powerful classification tool with robust performance. In this research, we are going to compute LDA along with its cross-validation method and compare their performance.
+
+```{r}
+library(MASS)
+library(ggplot2)
+lda_model <- lda(FoodGroup~., data = training_data)
+
+#prediction on testing set
+prediction_lda_test <- predict(lda_model, newdata = testing_data)
+lda_accuracy <- mean(prediction_lda_test$class==testing_data$FoodGroup)
+lda.data <- cbind(training_data, predict(lda_model)$x)
+ggplot(lda.data, aes(LD1, LD2)) +
+  geom_point(aes(color = FoodGroup))
+```
+As we can observe in the results, the accuracy rate of LDA on the testing set is 58 %. Although separation on the graph is not crystal clear, LDA was capable to separate and plot classes on lower dimensions.
+
+**How accurate LDA would be with Cross-Validation method compare to regular LDA?**
+
+### LDA Cross-Validation
+
+Cross-Validation(CV) was included in this analysis to compare accuracy with regular LDA. CV was done on the training set and validated on the testing set.
+```{r}
+#lda_cross-val
+lda_model_cross_val <- lda(FoodGroup~., data = training_data,
+                           trControl = trainControl(method = 'cv',
+                                                    number = 10,
+                                                    verboseIter = TRUE))
+#prediction of test
+lda_model_cross_val_predict = predict(lda_model_cross_val, newdata = testing_data)
+lda_cv_accuracy <- mean(lda_model_cross_val_predict$class==testing_data$FoodGroup)
+```
+The accuracy rate of LDA CV was identical to regular LDA.
+
+### Principal Component Analysis
+Principal Component Analysis (PCA) is a statistical method of reducing the dimensionality of the variables space without loss of important information that uses an orthogonal transformation to separate correlated and uncorrelated observations and captures its variability. In other words, PCA is a coordinate transformation, where data is plotted on a two-dimensional graph. More observations lead to an increase in graph dimensions but since it is impossible to plot a graph with four and more axes, PCA manages to put all observations on a simple two-dimensional graph with the direction of most variation and second most variation axes. It turns out that a set of other axes are related to eigenvalues and eigenvectors of the covariance matrix (covariance of dataset matrix). Each eigenvector is a vector unit that points in the direction of a coordinate axis that was impossible to plot along with previous ones. The axis with the highest eigenvalue score is the axis that explains most variation, and it is usually Principal Component 1 (PC1) and Principal component 2 (PC2).
+
+```{r}
+pca <- prcomp(data.matrix(data[-length(data)]), scale = F)
+pca.var <- pca$sdev^2 #calculate variation in the data for each PC. if is more than 1 it explains better
+pca.var.per <- round(pca.var/sum(pca.var)*100, 1) #percentage of each variation for PC
+cumvar <- sum(pca.var.per[1:5]) #first 5 PCs explanation share
+```
+
+
+```{r}
+library(ggplot2)
+pca.data <- data.frame(Sample= rownames(pca$x),
+                       X= pca$x[,1],
+                       Y = pca$x[,2])
+ggplot(data=pca.data, aes(x=X, y=Y, label=Sample))+
+  geom_text() +
+  xlab(paste('PC1 - ', pca.var.per[1], '%', sep=''))+
+  ylab(paste('PC2 -', pca.var.per[2], '%', sep=''))+theme_bw()+
+  ggtitle('PCA')
+```
+
+The plot shows the data distribution on the two-dimensional graph, where PC1 and PC2 are axed of it. 
+
+```{r}
+barplot(pca.var.per[1:5], main = 'Scree Plot', xlab = 'Principal Components', ylab = 'Percentage Variation') #ploting the PC percentage
+```
+
+The picture above shows the percentage of variation of each PC (Also known as Factor Loading Analysis). As it was expected, PC1 accounts for most of the data variation, which is 16.1%. Next follows PC2 with 8.5%. Detailed percentage distribution and variation scores are indicated in the below
+
+```{r}
+plot(pca, type = 'l') #plotting eigenvalues per pc
+```
+
+The plot shows how much variation in original data each Principal Component accounts for. As we can observe here, PC1 has the highest variation score. Variation accounts as “valuable” if the score (or eigenvalue) of it is more than 1.
+
+```{r}
+ggplot(data, aes(pca$x[,1], pca$x[,2], col = FoodGroup, fill =FoodGroup))+
+  stat_ellipse(geom = 'polygon', col = 'black', alpha = 0.5)+ 
+  geom_point(shape = 21, col = 'black')
+```
+
+Last, but not least graph is an illustration of all samples with color-coding and grouping (25 determined groups from the initial dataset). We can observe here that there are distinguishing groups and PCA did a decent job in classification, but also, we can see knocked out samples scattered on the downside of the left-hand panel of the graph.
+
+**Which components have the biggest impact on classification?**
+
+To answer this question, we are going to compare PCA's top ten loading scores on PC1 and PC2, and the Random Forest method.
+
+### PCA loading scores
+```{r}
+for (PC in 1:2){
+  component_scores_1 <- names(sort(abs(pca$rotation[,PC]), decreasing = T)[1:10])
+  print(PC)
+  print(pca$rotation[component_scores_1, PC])
+}
+```
+On the table above we can see the top ten food components on each axis that derives into clusters, Food Groups. On a PC1 axis, components with positive values push samples to the right-hand side, with negative values push to the left-hand side. The same logic goes to the PC2 axis, where components with positive values push samples up, and with negative values push samples down. 
+
+For instance, Riboflavin_.mg. has a positive value, thus samples with high value in this component are pushed to the right on the PC1 axis. Simultaneously, samples with low values in the very same component are pushed to the left-hand side on the PC1 axis. Samples with high value in Protein_.g. are pushed to the downside on PC2 axis, and low value is pushed to the upside.
+
+### Random Forest
+Random Forest is a relatively new method for the classification/regression approach. The algorithm uses a general method of bootstrap aggregation with a decision tree idea. Bootstrapping tends to decrease the variance of the model without increasing the bias. In other words, Random Forest is a more developed version of the Decision Tree with a very robust performance.
+    
+```{r}
+library(randomForest)
+random_forest_model <- randomForest(FoodGroup~., 
+                                    data = training_data, importance = T)
+#predition of training set
+prediction_forest_train <- predict(random_forest_model, training_data, 
+                                   type = 'class')
+mean(prediction_forest_train == training_data$FoodGroup)
+#prediction of testing set
+prediction_forest_test <- predict(random_forest_model, newdata = testing_data, 
+                                  type = 'class')
+random_forest_accuracy <- mean(prediction_forest_test == testing_data$FoodGroup)
+
+varImpPlot(random_forest_model)
+```
+
+The accuracy rate of Random Forest is 88% on testing data, which is remarkable. The random forest method allows us to plot the most important components for classification. As we can see in the table above (mean decrease accuracy), the most important components, in general, that helps us to classify food groups listed in there. In another table (mean decreased Gini), food components that important in local terms (out of the bag) are listed. Mean Decrease accuracy table is more valuable for us since it indicates the most important components in general that play a significant role in classification. 
+
+```{r}
+plot(random_forest_model, type="l", main=deparse(substitute(random_forest_model)))
+```
+
+The picture above indicates the error rate and fluctuation for each Food Group. 
+
+**How does Decision Tree stand out in comparison with Random Forest, and which are deciding components in classification for this method?**
+
+To answer those questions, let us run the Decision Tree method.
+
+### Decision Tree
+Decision Tree learning is a tool in statistics that uses tree-like moles with all possible consequences as leaves. The method is frequently used in data mining. It puts as a root node the most valuable variable and recursively does the same thing with the following nodes. It has a simple idea but the performance strongly depends on data type and types of variables.
+    
+```{r}
+library(rpart)
+library(caret)
+decision_tree_model <- rpart(FoodGroup~., data = training_data)
+```
+
+Prediction on training and testing sets
+```{r}
+#prediction on train data
+prediction_decision_train <-predict(decision_tree_model, training_data, type = 'class') 
+mean(prediction_decision_train==training_data$FoodGroup)
+#prediction on testing data
+prediction_decision_test <-predict(decision_tree_model, newdata = testing_data, type = 'class')
+decision_tree_accuracy <- mean(prediction_decision_test==testing_data$FoodGroup) 
+library(rpart.plot)
+prp(decision_tree_model)
+```
+The accuracy rate of Decision tree classification is 54%. On the plot above we can see classification trees with food components and conditional values, and leaves as a food group. For instance, if a sample has a value in the carbohydrates more or equal than 1.4 and has value in niacin more than 1.7, it would be classified as a Breakfast group.
+
+
+**How accurate was PCA method and how does it stand out with another unsupervised clustering method as k-means?**
+
+To answer these questions, first of all, we have to measure the accuracy of PCA, and in order to do that, Multinomial Logistic Regression is used in this analysis. Afterward, we are going to run k-means clustering.
+
+### Multinomial Logistic Regression
+Multinomial Logistic Regression (MLR) is a predictive regressional analysis for a dependent variable with more than 2 levels. In this analysis, MLR is used to test accuracy of PCA.
+
+```{r}
+#preparation for MLR
+pca_train <- predict(pca, training_data)
+pca_train <- data.frame(pca_train, training_data$FoodGroup)
+
+pca_test <- predict(pca, testing_data)
+pca_test <- data.frame(pca_test, testing_data$FoodGroup)
+#multinom reg
+#levels(training_data$FoodGroup)
+library(nnet)
+pca_train$training_data.FoodGroup <- relevel(pca_train$training_data.FoodGroup, 
+                                             ref = 'Sweets')
+mnom_model <- multinom(training_data.FoodGroup~PC1+PC2+PC3+PC4+PC5, data = pca_train)
+#testing on train
+pca_predict_train <- predict(mnom_model, pca_train)
+mean(pca_predict_train==pca_train$training_data.FoodGroup)
+#testing on test
+pca_predict_test = predict(mnom_model, newdata = pca_test)
+mnom_accuracy <- mean(pca_predict_test==pca_test$testing_data.FoodGroup)
+```
+MLR was run on the first five PCs, since these components have the highest variation. The accuracy on testing set is 42%. As a reference type, 'Sweets' was indicated for this analysis. We can indicate any other food group. We can conclude, that accuracy rate of PCA was mediocre.
+
+
+### K-Means
+K-means is another unsupervised clustering method frequently used in machine learning and data mining, where k stands for the number of clusters indicated by a user. The algorithm sets those selected clusters on data as a 'marked' points and related other data points depending on the distance.
+
+```{r}
+library(latexpdf)
+library(ggfortify)
+set.seed(123)
+k_means_clust <- kmeans(data[-length(data)], 25)
+k_means_cluster_vector <- factor(c(k_means_clust[1]$cluster), labels = levels(data$FoodGroup))
+k_mean_accuracy <- mean(k_means_cluster_vector==data$FoodGroup) #testing accuracy
+autoplot(k_means_clust, data, frame= T)
+```
+
+In terms of accuracy rate, k-means performed much worse than PCA. The reason could be that food groups were created based on social justification but not based on scientific reason. But these two methods are completely different. PCA uses an orthogonal transformation to separate correlated and uncorrelated observations and captures its variability, where k-means ties to cluster samples which are close to centroid points with no knowledge of correlation. But even that, k-means was able to separate some samples from each other as we can we in the plot above.
+
+
+**How does Support Vector Machine, optimization classification method that does not do any assumptions on the distribution of food groups stand out in comparison with other classification methods such as LDA or MRL in terms of accuracy and performance in general?**
+
+### SVM
+Support Vector Machine (SVM) is a supervised learning method perfectly suitable for classification and regression analysis. SVM is a very fast and well-performing algorithm even on multidimensional datasets. In current analysis "Radial" kernel was used to separate samples. 
+```{r}
+library(e1071)
+svm_classificator = svm(formula = FoodGroup~.,
+                        data = training_data,
+                        type = 'C-classification',
+                        kernel = 'radial',
+                        cost = 10)
+svm_classificator
+#prediction on training set
+prediction_svm_classif_train = predict(svm_classificator, training_data)
+mean(prediction_svm_classif_train==training_data$FoodGroup)
+#prediction of test data
+prediction_svm_classif_test = predict(svm_classificator, newdata = testing_data)
+#table(prediction_svm_classif_test, testing_data$FoodGroup)
+svm_accuracy <- mean(prediction_svm_classif_test==testing_data$FoodGroup)
+```
+
+The performance of SVM also was good with decent accuracy in 81%.
+
+
+
+## Final Table
+```{r echo=FALSE}
+Method <- c('PCA/MLR', 'LDA','LDA-cross-validation','Random Forest', 'Decision Tree', 'SVM', 'k-means')
+Accuracy_percent <- round(c(mnom_accuracy, lda_accuracy,lda_cv_accuracy, random_forest_accuracy, 
+                            decision_tree_accuracy, svm_accuracy, k_mean_accuracy)*100, digits = 1)
+df <- data.frame(Method,Accuracy_percent)
+knitr::kable(df)
+```
+
+The table above along with the radar chart indicate accuracy rate of all used methods in this analysis. As we can see there, one of the most accurate methods for the food composition dataset are Random Forest and Support Vector Machine. Other methods have relatively poor accuracy results, but the reason for that kind of performance could be “socially classified” food groups that have nothing to do with actual food composition clustering. Some groups may contain a variety of components that mislead unsupervised methods as we can see in k-means clustering.
+
+```{r echo=FALSE}
+library(fmsb)
+data_spider <- as.data.frame(t(data.matrix(df)))[-1,]
+colnames(data_spider) <- Method
+data_spider <- rbind(rep(100,7) , rep(0,7) , data_spider)
+radarchart(data_spider)
+```
+
+
+## Bibliography 
+[1]Granato, D., Santos, J. S., Escher, G. B., Ferreira, B. L., & Maggio, R. M. (2018). Use of principal component analysis (PCA) and hierarchical cluster analysis (HCA) for multivariate association between bioactive compounds and functional properties in foods: A critical perspective. Trends in Food Science & Technology, 72, 83-90.
+
+[2]Giansante, L., Di Vincenzo, D., & Bianchi, G. (2003). Classification of monovarietal Italian olive oils by unsupervised (PCA) and supervised (LDA) chemometrics. Journal of the Science of Food and Agriculture, 83(9), 905-911.
+
+[3]Oppel, S., & Huettmann, F. (2010). Using a random forest model and public data to predict the distribution of prey for marine wildlife management. In Spatial Complexity, Informatics, and Wildlife Conservation (pp. 151-163). Springer, Tokyo.
+
+[4]Wie, S., Shanklin, C. W., & Lee, K. E. (2003). A decision tree for selecting the most cost-effective waste disposal strategy in foodservice operations. Journal of the American Dietetic Association, 103(4), 475-482.
+
+[5]Santhanam, T., & Padmavathi, M. S. (2015). Application of K-means and genetic algorithms for dimension reduction by integrating SVM for diabetes diagnosis. Procedia Computer Science, 47, 76-83.
